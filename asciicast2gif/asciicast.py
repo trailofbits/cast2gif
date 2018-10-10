@@ -457,4 +457,4 @@ class AsciiCast(object):
         images[0].save(output_stream, save_all=True,
                        append_images=images[1:],
                        duration=1000.0 / float(fps),
-                       loop=0)
+                       loop=loop)
