@@ -452,11 +452,11 @@ class AsciiCast(object):
                             foreground, background = background, foreground
                             cursor_drawn = True
                         pos = (font_width * (x + 1), font_height * (y + 1))
-                        draw.rectangle((pos, (pos[0] + font_width + 1, pos[1] + font_height + 1)), fill=to_rgb(background))
-                        draw.text(pos, c, fill=to_rgb(foreground), font=font)
+                        draw.rectangle((pos, (pos[0] + font_width + 1, pos[1] + 1)), fill=to_rgb(background))
+                        draw.text((pos[0], pos[1] - font_height), c, fill=to_rgb(foreground), font=font)
             if not term.hide_cursor and not cursor_drawn:
                 pos = (font_width * (term.col + 1) + 1, font_height * (term.row + 1) + 1)
-                draw.rectangle((pos, (pos[0] + font_width, pos[1] + font_height)), fill=to_rgb(term.foreground))
+                draw.rectangle((pos, (pos[0] + font_width, pos[1] - font_height)), fill=to_rgb(term.foreground))
             term.bell = False
 
         images[0].save(output_stream, save_all=True,
