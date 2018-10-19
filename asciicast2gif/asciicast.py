@@ -104,6 +104,7 @@ def to_rgb(color):
 
 def ansi_to_cga(index):
     '''Converts ANSI X.364 to CGA'''
+    index = index % 8
     return CGAColor([0, 4, 2, 6, 1, 5, 3, 7][index])
 
 @numeric_enum
