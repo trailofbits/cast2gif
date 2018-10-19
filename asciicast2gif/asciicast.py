@@ -360,7 +360,7 @@ class ANSITerminal(Screen):
                 self.foreground = ansi_to_cga(esc - 92)
 
 class AsciiCast(object):
-    def __init__(self, cast):
+    def __init__(self, cast, width=None, height=None):
         self.metadata = None
         self.data = []
         for line in cast.splitlines():
@@ -368,6 +368,10 @@ class AsciiCast(object):
                 self.metadata = json.loads(line)
             else:
                 self.data.append(json.loads(line))
+        if width is not None:
+            self.metadata['width'] = width
+        if height is not None:
+            self.metadata['height'] = height
     def calculate_optimal_fps(self, idle_time_limit = None):
         min_delta = None
         last = None

@@ -54,6 +54,8 @@ def main(argv = None):
     parser.add_argument('--idle-time-limit', type=float, default=None, help='The maximum amount of idle time that can occur between terminal events; by default this is read from the AsciiCast input, or set to zero if none is specified in the input; if provided, this option will override whatever is specified in the input')
     parser.add_argument('--loop', type=int, default=0, help='The number of times the GIF should loop, or zero if it should loop forever (default=0)')
     parser.add_argument('--quiet', action='store_true', default=False, help='Suppress all logging and status printouts')
+    parser.add_argument('--width', type=int, default=None, help='Override the output width')
+    parser.add_argument('--height', type=int, default=None, help='Override the output height')
 
     if argv is None:
         argv = sys.argv
@@ -73,7 +75,7 @@ def main(argv = None):
         input_stream = open(args.ASCIICAST, 'rb')
     try:
         input_isatty = input_stream.isatty()
-        cast = AsciiCast(input_stream.read())
+        cast = AsciiCast(input_stream.read(), width=args.width, height=args.height)
     finally:
         if input_stream != sys.stdin:
             input_stream.close()
