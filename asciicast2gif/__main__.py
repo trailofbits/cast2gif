@@ -7,11 +7,14 @@ import sys
 from PIL import ImageFont
 
 from . import AsciiCast
+from .asciicast import VERSION_NAME
+
 
 class StatusLogger(object):
     def __init__(self, width=30):
         self.last_percent = -1
         self.width = width
+
     def log_frame(self, frame, num_frames):
         percent_done = float(int(float(frame) / float(num_frames) * 1000.0)) / 10.0
         if percent_done > self.last_percent:
@@ -27,7 +30,7 @@ class StatusLogger(object):
             for i in range(self.width - 2):
                 if i == percent_start:
                     sys.stderr.write(percent_string)
-                elif i > percent_start and i < percent_start + len(percent_string):
+                elif percent_start < i < percent_start + len(percent_string):
                     continue
                 elif i < bar_length - 1 or percent_done >= 100:
                     sys.stderr.write('=')
@@ -39,10 +42,12 @@ class StatusLogger(object):
             sys.stderr.write(']')
             sys.stderr.flush()
             self.last_percent = percent_done
+
     def clear(self):
         sys.stderr.write("\r%s\r" % ' ' * self.width)
 
-def main(argv = None):
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description='Converts AsciiCast terminal recordings to animated GIFs')
     parser.add_argument('-v', '--version', action='store_true', default=False, help='Print version information and exit')
     parser.add_argument('ASCIICAST', type=str, help='The AsciiCast v2 file to convert, or \'-\' for STDIN')
@@ -102,7 +107,7 @@ def main(argv = None):
         else:
             status_logger = StatusLogger()
             frame_callback = status_logger.log_frame
-        cast.render(output_stream, font, fps = args.fps, idle_time_limit = args.idle_time_limit, loop=args.loop, frame_callback = frame_callback)
+        cast.render(output_stream, font, fps=args.fps, idle_time_limit=args.idle_time_limit, loop=args.loop, frame_callback=frame_callback)
 
         if not output_stream.isatty() and not args.quiet:
             status_logger.clear()
@@ -111,6 +116,7 @@ def main(argv = None):
     finally:
         if output_stream != sys.stdout:
             output_stream.close()
-        
+
+
 if __name__ == '__main__':
     main()

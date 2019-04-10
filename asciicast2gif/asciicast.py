@@ -1,15 +1,16 @@
-VERSION='0.0.1'
-VERSION_NAME="ToB/v%s/source/AsciiCast2Gif" % VERSION
-
 from enum import Enum
 import json
 import math
-
 from PIL import Image, ImageDraw
 
+VERSION = '0.0.1'
+VERSION_NAME = "ToB/v%s/source/AsciiCast2Gif" % VERSION
+
+
 def constrain(n, n_min, n_max):
-    '''Constrain n to the range [n_min, n_max)'''
+    """Constrain n to the range [n_min, n_max)"""
     return min(max(n, n_min), n_max - 1)
+
 
 def to_int(n, default=None):
     try:
@@ -17,17 +18,21 @@ def to_int(n, default=None):
     except (TypeError, ValueError):
         return default
 
+
 def numeric_enum(c):
     def __and__(self, n):
         if isinstance(n, Enum):
             n = n.value
         return EnumAwareInt(int(self.value) & int(n))
+
     def __or__(self, n):
         if isinstance(n, Enum):
             n = n.value
         return EnumAwareInt(int(self.value) | int(n))
+
     def __invert__(self):
         return EnumAwareInt(~int(self.value))
+
     def __int__(self):
         return self.value
     setattr(c, '__and__', __and__)
@@ -36,14 +41,18 @@ def numeric_enum(c):
     setattr(c, '__int__', __int__)
     return c
 
+
 @numeric_enum
 class EnumAwareInt(object):
     def __init__(self, value):
         self.value = value
+
     def __str__(self):
         return str(self.value)
+
     def __repr__(self):
-        return "EnumAwareInt<%d>" % int(self.value)
+        return f"EnumAwareInt({self.value!r})"
+
 
 @numeric_enum
 class CGAColor(Enum):
@@ -65,53 +74,57 @@ class CGAColor(Enum):
     YELLOW = 14
     WHITE = 15
 
+
 def to_rgb(color):
     value = color.value & 0b1111 # Strip out the high attribute bits
     if value == int(CGAColor.BLACK):
-        return (0, 0, 0)
+        return 0, 0, 0
     elif value == int(CGAColor.BLUE):
-        return (0, 0, 255)
+        return 0, 0, 255
     elif value == int(CGAColor.GREEN):
-        return (0, 255, 0)
+        return 0, 255, 0
     elif value == int(CGAColor.CYAN):
-        return (0, 255, 255)
+        return 0, 255, 255
     elif value == int(CGAColor.RED):
-        return (255, 0, 0)
+        return 255, 0, 0
     elif value == int(CGAColor.MAGENTA):
-        return (0xAA, 0x00, 0xAA)
+        return 0xAA, 0x00, 0xAA
     elif value == int(CGAColor.BROWN):
-        return (0xAA, 0x55, 0x00)
+        return 0xAA, 0x55, 0x00
     elif value == int(CGAColor.GRAY):
         return (0xAA,) * 3
     elif value == int(CGAColor.DARK_GRAY):
         return (0x55,) * 3
     elif value == int(CGAColor.LIGHT_BLUE):
-        return (0x55, 0x55, 0xFF)
+        return 0x55, 0x55, 0xFF
     elif value == int(CGAColor.LIGHT_GREEN):
-        return (0x55, 0xFF, 0x55)
+        return 0x55, 0xFF, 0x55
     elif value == int(CGAColor.LIGHT_CYAN):
-        return (0x55, 0xFF, 0xFF)
+        return 0x55, 0xFF, 0xFF
     elif value == int(CGAColor.LIGHT_RED):
-        return (0xFF, 0x55, 0x55)
+        return 0xFF, 0x55, 0x55
     elif value == int(CGAColor.LIGHT_MAGENTA):
-        return (0xFF, 0x55, 0xFF)
+        return 0xFF, 0x55, 0xFF
     elif value == int(CGAColor.YELLOW):
-        return (0xFF, 0xFF, 0x55)
+        return 0xFF, 0xFF, 0x55
     elif value == int(CGAColor.WHITE):
-        return (255, 255, 255)
+        return 255, 255, 255
     else:
-        raise Exception("Unsupported Color: %s (value = %d)" % (color, color.value))
+        raise Exception(f"Unsupported Color: {color} (value = {color.value})")
+
 
 def ansi_to_cga(index):
-    '''Converts ANSI X.364 to CGA'''
+    """Converts ANSI X.364 to CGA"""
     index = index % 8
     return CGAColor([0, 4, 2, 6, 1, 5, 3, 7][index])
+
 
 @numeric_enum
 class CGAAttribute(Enum):
     PLAIN = 0
     INVERSE = 1
     INTENSE = 8
+
 
 class Screen(object):
     def __init__(self, width, height):
@@ -128,12 +141,12 @@ class Screen(object):
         self.clear(2)
 
     def clear(self, screen_portion=0):
-        '''
+        """
         Clears a portion or all of the screen
 
         :param screen_portion: 0 (default) clears from cursor to end of screen; 1 clears from cursor to the beginning of the screen; and 2 clears the entire screen
         :return: returns nothing
-        '''
+        """
         if screen_portion == 1:
             # Clear from the beginning of the screen to the cursor
             self.screen[self.row] = [None] * (self.width - self.col + 1) + self.screen[self.row][self.col + 1:]
@@ -147,12 +160,12 @@ class Screen(object):
             self.screen = self.screen[:self.row + 1] + [[None] * self.width for i in range(self.height - self.row - 1)]
 
     def erase_line(self, line_portion=0):
-        '''
+        """
         Clears a portion or all of the current line
 
         :param line_portion: 0 (default) clears from cursor to end of line; 1 clears from cursor to the beginning of the line; and 2 clears the entire line
         :return: returns nothing
-        '''
+        """
         if line_portion == 1:
             # Clear from the beginning of the line to the cursor
             self.screen[self.row] = [None] * (self.width - self.col + 1) + self.screen[self.row][self.col + 1:]
@@ -188,7 +201,7 @@ class Screen(object):
                 background = self.background
             if attr is None:
                 attr = self.attr
-            if self.row >= 0 and self.row < self.height and self.col >= 0 and self.col < self.width:
+            if 0 <= self.row < self.height and 0 <= self.col < self.width:
                 self.screen[self.row][self.col] = (char, foreground, background, attr)
             self.col += 1
         if self.col >= self.width:
@@ -196,7 +209,7 @@ class Screen(object):
             self.row += 1
         if self.row >= self.height:
             extra_rows = self.row - self.height + 1
-            self.screen = self.screen[extra_rows:] + [[None] * self.width for i in range(extra_rows)]
+            self.screen = self.screen[extra_rows:] + [[None] * self.width for _ in range(extra_rows)]
             self.row = self.height - 1
 
     def move_up(self, rows=1):
@@ -218,7 +231,7 @@ class Screen(object):
             self.row = row
 
 class ANSITerminal(Screen):
-    '''A simple ANSI terminal emulator'''
+    """A simple ANSI terminal emulator"""
     class TerminalState(Enum):
         OUTSIDE = 0
         ESC = 1
@@ -359,6 +372,7 @@ class ANSITerminal(Screen):
             elif esc in range(100, 108):
                 self.foreground = ansi_to_cga(esc - 92)
 
+
 class AsciiCast(object):
     def __init__(self, cast, width=None, height=None):
         self.metadata = None
@@ -372,6 +386,7 @@ class AsciiCast(object):
             self.metadata['width'] = width
         if height is not None:
             self.metadata['height'] = height
+
     def calculate_optimal_fps(self, idle_time_limit = None):
         min_delta = None
         last = None
@@ -393,6 +408,7 @@ class AsciiCast(object):
             return 0
         else:
             return 1.0 / min_delta
+
     def render(self, output_stream, font, fps = None, idle_time_limit = 0, loop = 0, frame_callback = None):
         font_width, font_height = font.getsize('X')
         width = self.metadata['width']
