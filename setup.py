@@ -8,6 +8,7 @@ setup(
     author='Trail of Bits',
     version='0.0.2',
     packages=find_packages(),
+    package_data={'cast2gif': [os.path.join('Source_Code_Pro', '*')]},
     include_package_data=True,
     python_requires='>=3.6',
     install_requires=[
