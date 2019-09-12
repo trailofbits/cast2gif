@@ -2,11 +2,11 @@ import os
 from setuptools import setup, find_packages
 
 setup(
-    name='asciicast2gif',
+    name='cast2gif',
     description='Converts AsciiCast terminal recordings to animated GIFs',
-    url='https://github.com/trailofbits/asciicast2gif',
+    url='https://github.com/trailofbits/cast2gif',
     author='Trail of Bits',
-    version='0.0.1',
+    version='0.0.2',
     packages=find_packages(),
     include_package_data=True,
     python_requires='>=3.6',
@@ -15,7 +15,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'asciicast2gif = asciicast2gif.__main__:main'
+            'cast2gif = cast2gif.__main__:main'
         ]
     }
 )

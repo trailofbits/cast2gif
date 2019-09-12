@@ -3,8 +3,8 @@ import json
 import math
 from PIL import Image, ImageDraw
 
-VERSION = '0.0.1'
-VERSION_NAME = "ToB/v%s/source/AsciiCast2Gif" % VERSION
+VERSION = '0.0.2'
+VERSION_NAME = "ToB/v%s/source/Cast2Gif" % VERSION
 
 
 def constrain(n, n_min, n_max):
@@ -230,6 +230,7 @@ class Screen(object):
         if row is not None:
             self.row = row
 
+
 class ANSITerminal(Screen):
     """A simple ANSI terminal emulator"""
     class TerminalState(Enum):
@@ -409,7 +410,7 @@ class AsciiCast(object):
         else:
             return 1.0 / min_delta
 
-    def render(self, output_stream, font, fps = None, idle_time_limit = 0, loop = 0, frame_callback = None):
+    def render(self, output_stream, font, fps=None, idle_time_limit=0, loop=0, frame_callback=None):
         font_width, font_height = font.getsize('X')
         width = self.metadata['width']
         height = self.metadata['height']
