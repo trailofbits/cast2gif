@@ -53,3 +53,5 @@ optional arguments:
 ## License
 
 Cast2Gif is licensed and distributed under the [AGPLv3](LICENSE) license. [Contact us](mailto:opensource@trailofbits.com) if you’re looking for an exception to the terms.
+
+Adobe's SourceCodePro font is distributed with Cast2Gif and is licensed under the [SIL OPEN FONT LICENSE Version 1.1](cast2gif/Source_Code_Pro/OFL.txt).
