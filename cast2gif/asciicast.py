@@ -6,6 +6,7 @@ from typing import (
 )
 
 from PIL import Image, ImageDraw
+from PIL.ImageFont import FreeTypeFont
 
 VERSION = "0.0.2"
 VERSION_NAME = "ToB/v%s/source/Cast2Gif" % VERSION
@@ -402,7 +403,7 @@ class AsciiCast:
     def render(
             self,
             output_stream: BinaryIO,
-            font,
+            font: FreeTypeFont,
             fps: Optional[float] = None,
             idle_time_limit: int = 0,
             loop: int = 0,

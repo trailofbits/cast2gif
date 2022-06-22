@@ -150,7 +150,7 @@ def main(argv=None):
         else:
             args.output = "%s.gif" % args.ASCIICAST
     if args.output == "-":
-        output_stream = sys.stdin
+        output_stream = sys.stdout
     else:
         if not args.force and os.path.exists(args.output):
             if not args.quiet:
@@ -161,7 +161,6 @@ def main(argv=None):
             sys.exit(1)
         output_stream = open(args.output, "wb")
     try:
-
         font = ImageFont.truetype(font=args.font, size=args.font_size)
         if args.quiet or not sys.stderr.isatty():
             status_logger = None
