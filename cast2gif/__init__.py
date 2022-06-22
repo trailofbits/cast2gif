@@ -1,1 +1,1 @@
-from .asciicast import ANSITerminal, AsciiCast, __version__, __version_name__
+from .asciicast import AsciiCast, __version__, __version_name__
