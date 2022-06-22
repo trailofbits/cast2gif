@@ -1,6 +1,7 @@
 from enum import IntEnum, IntFlag
 import json
 import math
+import pkg_resources
 from typing import (
     Any, BinaryIO, Callable, Dict, Iterable, List, Optional, SupportsInt, SupportsIndex, Tuple, TypeVar, Union
 )
@@ -8,8 +9,8 @@ from typing import (
 from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
 
-VERSION = "0.0.2"
-VERSION_NAME = "ToB/v%s/source/Cast2Gif" % VERSION
+__version__: str = pkg_resources.require("cast2gif")[0].version
+__version_name__: str = f"ToB/v{__version__}/source/Cast2Gif"
 
 T = TypeVar("T")
 

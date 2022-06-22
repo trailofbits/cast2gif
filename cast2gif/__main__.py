@@ -7,7 +7,7 @@ import sys
 from PIL import ImageFont
 
 from . import AsciiCast
-from .asciicast import VERSION_NAME
+from .asciicast import __version_name__
 
 
 class StatusLogger:
@@ -123,7 +123,7 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
 
     if args.version:
-        print(VERSION_NAME)
+        print(__version_name__)
         sys.exit(0)
 
     if args.font is None:
