@@ -1,5 +1,6 @@
 from enum import IntEnum, IntFlag
-from typing import List, Optional, Tuple, TypeVar, Union
+import itertools
+from typing import Iterable, List, Optional, Tuple, TypeVar, Union
 
 from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
@@ -91,12 +92,14 @@ class ScreenPortion(IntEnum):
 
 
 class Screen:
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, scrollback: Optional[int] = 0):
         self.col: int = 0
         self.row: int = 0
         self.width: int = width
         self.height: int = height
-        self.screen: Optional[List[List[Optional[ScreenCell]]]] = None
+        self.scrollback: Optional[int] = scrollback
+        self.scroll_buffer: List[List[Optional[ScreenCell]]] = []
+        self.screen: List[List[Optional[ScreenCell]]] = []
         self.foreground: CGAColor = CGAColor.GRAY
         self.background: CGAColor = CGAColor.BLACK
         self.attr: CGAAttribute = CGAAttribute.PLAIN
@@ -115,10 +118,10 @@ class Screen:
         if screen_portion == 1:
             # Clear from the beginning of the screen to the cursor
             self.screen[self.row] = [None] * (self.width - self.col + 1) + self.screen[self.row][self.col + 1:]
-            self.screen = [[None] * self.width for i in range(self.row)] + self.screen[self.row:]
+            self.screen = [[None] * self.width for _ in range(self.row)] + self.screen[self.row:]
         elif screen_portion == 2:
             # Clear the entire screen
-            self.screen = [[None] * self.width for i in range(self.height)]
+            self.screen = [[None] * self.width for _ in range(self.height)]
         else:
             # Clear from the cursor to the end of the screen
             self.screen[self.row] = self.screen[self.row][:self.col] + [None] * (self.width - self.col)
@@ -176,6 +179,10 @@ class Screen:
             self.row += 1
         if self.row >= self.height:
             extra_rows = self.row - self.height + 1
+            if extra_rows > 0 and (self.scrollback is None or self.scrollback > 0):
+                self.scroll_buffer += self.screen[:extra_rows]
+                if self.scrollback is not None:
+                    self.scroll_buffer = self.scroll_buffer[-self.scrollback:]
             self.screen = self.screen[extra_rows:] + [[None] * self.width for _ in range(extra_rows)]
             self.row = self.height - 1
 
@@ -197,10 +204,12 @@ class Screen:
         if row is not None:
             self.row = row
 
-    def render(self, font: FreeTypeFont) -> Image:
+    def render(self, font: FreeTypeFont, include_scrollback: bool = False) -> Image:
         font_width, font_height = font.getsize('X')
         image_width = self.width * font_width
         image_height = self.height * font_height
+        if include_scrollback:
+            image_height += len(self.scroll_buffer)
         im = Image.new("RGB", (image_width + 2 * font_width, image_height + 2 * font_height))
         draw = ImageDraw.Draw(im)
         if self.bell:
@@ -212,7 +221,11 @@ class Screen:
             fill=to_rgb(fill_color)
         )
         cursor_drawn = False
-        for y, r in enumerate(self.screen):
+        if include_scrollback:
+            data: Iterable[List[Optional[ScreenCell]]] = itertools.chain(self.scroll_buffer, self.screen)
+        else:
+            data = self.screen
+        for y, r in enumerate(data):
             for x, cell in enumerate(r):
                 if cell is not None:
                     c, foreground, background, attr = cell.value, cell.foreground, cell.background, cell.attr

@@ -1,7 +1,7 @@
 from enum import IntEnum
-from typing import Optional, SupportsIndex, SupportsInt, Tuple, Union
+from typing import List, Optional, SupportsIndex, SupportsInt, Tuple, Union
 
-from cast2gif.screen import Screen, CGAColor, CGAAttribute
+from cast2gif.screen import Screen, ScreenCell, CGAColor, CGAAttribute
 
 
 def to_int(n: Union[str, bytes, SupportsInt, SupportsIndex], default: Optional[int] = None) -> Optional[int]:
@@ -25,8 +25,8 @@ class ANSITerminal(Screen):
         ESCBKT = 2
         OSC = 3
 
-    def __init__(self, width: int, height: int):
-        super().__init__(width, height)
+    def __init__(self, width: int, height: int, scrollback: Optional[int] = 0):
+        super().__init__(width, height, scrollback=scrollback)
         self._state: ANSITerminal.TerminalState = ANSITerminal.TerminalState.OUTSIDE
         self._esc: Optional[str] = None
         self._stored_pos: Optional[Tuple[int, int]] = None
