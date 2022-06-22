@@ -1,61 +1,31 @@
-from enum import Enum
+from enum import IntEnum, IntFlag
 import json
 import math
+from typing import (
+    Any, BinaryIO, Callable, Dict, Iterable, List, Optional, SupportsInt, SupportsIndex, Tuple, TypeVar, Union
+)
+
 from PIL import Image, ImageDraw
 
-VERSION = '0.0.2'
+VERSION = "0.0.2"
 VERSION_NAME = "ToB/v%s/source/Cast2Gif" % VERSION
 
+T = TypeVar("T")
 
-def constrain(n, n_min, n_max):
+
+def constrain(n: T, n_min: T, n_max: T) -> T:
     """Constrain n to the range [n_min, n_max)"""
     return min(max(n, n_min), n_max - 1)
 
 
-def to_int(n, default=None):
+def to_int(n: Union[str, bytes, SupportsInt, SupportsIndex], default: Optional[int] = None) -> Optional[int]:
     try:
         return int(n)
     except (TypeError, ValueError):
         return default
 
 
-def numeric_enum(c):
-    def __and__(self, n):
-        if isinstance(n, Enum):
-            n = n.value
-        return EnumAwareInt(int(self.value) & int(n))
-
-    def __or__(self, n):
-        if isinstance(n, Enum):
-            n = n.value
-        return EnumAwareInt(int(self.value) | int(n))
-
-    def __invert__(self):
-        return EnumAwareInt(~int(self.value))
-
-    def __int__(self):
-        return self.value
-    setattr(c, '__and__', __and__)
-    setattr(c, '__or__', __or__)
-    setattr(c, '__invert__', __invert__)
-    setattr(c, '__int__', __int__)
-    return c
-
-
-@numeric_enum
-class EnumAwareInt(object):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return str(self.value)
-
-    def __repr__(self):
-        return f"EnumAwareInt({self.value!r})"
-
-
-@numeric_enum
-class CGAColor(Enum):
+class CGAColor(IntEnum):
     BLACK = 0
     BLUE = 1
     GREEN = 2
@@ -75,8 +45,8 @@ class CGAColor(Enum):
     WHITE = 15
 
 
-def to_rgb(color):
-    value = color.value & 0b1111 # Strip out the high attribute bits
+def to_rgb(color: Union[int, CGAColor]) -> Tuple[int, int, int]:
+    value = color & 0b1111  # Strip out the high attribute bits
     if value == int(CGAColor.BLACK):
         return 0, 0, 0
     elif value == int(CGAColor.BLUE):
@@ -110,41 +80,55 @@ def to_rgb(color):
     elif value == int(CGAColor.WHITE):
         return 255, 255, 255
     else:
-        raise Exception(f"Unsupported Color: {color} (value = {color.value})")
+        raise Exception(f"Unsupported Color: {color} (value = {value})")
 
 
-def ansi_to_cga(index):
+def ansi_to_cga(index: int) -> CGAColor:
     """Converts ANSI X.364 to CGA"""
     index = index % 8
     return CGAColor([0, 4, 2, 6, 1, 5, 3, 7][index])
 
 
-@numeric_enum
-class CGAAttribute(Enum):
+class CGAAttribute(IntFlag):
     PLAIN = 0
     INVERSE = 1
     INTENSE = 8
 
 
-class Screen(object):
-    def __init__(self, width, height):
-        self.col = 0
-        self.row = 0
-        self.width = width
-        self.height = height
-        self.screen = None
-        self.foreground = CGAColor.GRAY
-        self.background = CGAColor.BLACK
-        self.attr = CGAAttribute.PLAIN
+class ScreenCell:
+    def __init__(self, value: str, foreground: CGAColor, background: CGAColor, attr: CGAAttribute):
+        self.value: str = value
+        self.foreground: CGAColor = foreground
+        self.background: CGAColor = background
+        self.attr: CGAAttribute = attr
+
+
+class ScreenPortion(IntEnum):
+    CURSOR_TO_END_OF_SCREEN = 0
+    CURSOR_TO_BEGINNING_OF_SCREEN = 1
+    ENTIRE_SCREEN = 2
+
+
+class Screen:
+    def __init__(self, width: int, height: int):
+        self.col: int = 0
+        self.row: int = 0
+        self.width: int = width
+        self.height: int = height
+        self.screen: Optional[List[List[Optional[ScreenCell]]]] = None
+        self.foreground: CGAColor = CGAColor.GRAY
+        self.background: CGAColor = CGAColor.BLACK
+        self.attr: CGAAttribute = CGAAttribute.PLAIN
         self.bell = False
         self.hide_cursor = False
         self.clear(2)
 
-    def clear(self, screen_portion=0):
+    def clear(self, screen_portion: Union[int, ScreenPortion] = ScreenPortion.CURSOR_TO_END_OF_SCREEN):
         """
         Clears a portion or all of the screen
 
-        :param screen_portion: 0 (default) clears from cursor to end of screen; 1 clears from cursor to the beginning of the screen; and 2 clears the entire screen
+        :param screen_portion: 0 (default) clears from cursor to end of screen; 1 clears from cursor to the beginning of
+               the screen; and 2 clears the entire screen
         :return: returns nothing
         """
         if screen_portion == 1:
@@ -159,11 +143,12 @@ class Screen(object):
             self.screen[self.row] = self.screen[self.row][:self.col] + [None] * (self.width - self.col)
             self.screen = self.screen[:self.row + 1] + [[None] * self.width for i in range(self.height - self.row - 1)]
 
-    def erase_line(self, line_portion=0):
+    def erase_line(self, line_portion: int = 0):
         """
         Clears a portion or all of the current line
 
-        :param line_portion: 0 (default) clears from cursor to end of line; 1 clears from cursor to the beginning of the line; and 2 clears the entire line
+        :param line_portion: 0 (default) clears from cursor to end of line; 1 clears from cursor to the beginning of the
+               line; and 2 clears the entire line
         :return: returns nothing
         """
         if line_portion == 1:
@@ -176,7 +161,8 @@ class Screen(object):
             # Clear from the cursor to the end of the line
             self.screen[self.row] = self.screen[self.row][:self.col] + [None] * (self.width - self.col)
             
-    def write(self, char, foreground = None, background = None, attr = None):
+    def write(self, char: Optional[str], foreground: Optional[CGAColor] = None, background: Optional[CGAColor] = None,
+              attr: Optional[CGAAttribute] = None):
         if char is None:
             return
         elif char == '\n':
@@ -202,7 +188,7 @@ class Screen(object):
             if attr is None:
                 attr = self.attr
             if 0 <= self.row < self.height and 0 <= self.col < self.width:
-                self.screen[self.row][self.col] = (char, foreground, background, attr)
+                self.screen[self.row][self.col] = ScreenCell(char, foreground, background, attr)
             self.col += 1
         if self.col >= self.width:
             self.col = 0
@@ -212,19 +198,19 @@ class Screen(object):
             self.screen = self.screen[extra_rows:] + [[None] * self.width for _ in range(extra_rows)]
             self.row = self.height - 1
 
-    def move_up(self, rows=1):
+    def move_up(self, rows: int = 1):
         self.row = constrain(self.row - rows, 0, self.height)
 
-    def move_down(self, rows=1):
+    def move_down(self, rows: int = 1):
         self.row = constrain(self.row + rows, 0, self.height)
 
-    def move_left(self, cols=1):
+    def move_left(self, cols: int = 1):
         self.col = constrain(self.col - cols, 0, self.width)
 
-    def move_right(self, cols=1):
+    def move_right(self, cols: int = 1):
         self.col = constrain(self.col + cols, 0, self.width)
 
-    def move_to(self, col = None, row = None):
+    def move_to(self, col: Optional[int] = None, row: Optional[int] = None):
         if col is not None:
             self.col = col
         if row is not None:
@@ -233,30 +219,31 @@ class Screen(object):
 
 class ANSITerminal(Screen):
     """A simple ANSI terminal emulator"""
-    class TerminalState(Enum):
+    class TerminalState(IntEnum):
         OUTSIDE = 0
         ESC = 1
         ESCBKT = 2
         OSC = 3
 
-    def __init__(self, width, height):
+    def __init__(self, width: int, height: int):
         super().__init__(width, height)
-        self._state = ANSITerminal.TerminalState.OUTSIDE
-        self._esc = None
-        self._stored_pos = None
-        self._last_char = None
+        self._state: ANSITerminal.TerminalState = ANSITerminal.TerminalState.OUTSIDE
+        self._esc: Optional[str] = None
+        self._stored_pos: Optional[Tuple[int, int]] = None
+        self._last_char: Optional[str] = None
 
-    def write(self, char):
+    def write(self, char: Optional[str], foreground: Optional[CGAColor] = None, background: Optional[CGAColor] = None,
+              attr: Optional[CGAAttribute] = None):
         if char is None or len(char) == 0 or char in '\x13\x14\x15\x26':
             pass
         elif len(char) > 1:
             for c in char:
-                self.write(c)
+                self.write(c, foreground=foreground, background=background, attr=attr)
         elif self._state == ANSITerminal.TerminalState.OUTSIDE:
             if ord(char) == 27:
                 self._state = ANSITerminal.TerminalState.ESC
             else:
-                super().write(char)
+                super().write(char, foreground=foreground, background=background, attr=attr)
         elif self._state == ANSITerminal.TerminalState.ESC:
             self._write_esc(char)
         elif self._state == ANSITerminal.TerminalState.ESCBKT:
@@ -268,7 +255,7 @@ class ANSITerminal(Screen):
                 self._state = ANSITerminal.TerminalState.OUTSIDE
         self._last_char = char
 
-    def _write_esc(self, char):
+    def _write_esc(self, char: str):
         if char == ']':
             self._state = ANSITerminal.TerminalState.OSC
         elif char == '[':
@@ -277,9 +264,9 @@ class ANSITerminal(Screen):
         elif char in '\030\031':
             self._state = ANSITerminal.TerminalState.OUTSIDE
         else:
-            raise Exception("Escape sequence ESC \\x%x is not currently supported!" % ord(char))
+            raise Exception(f"Escape sequence ESC \\x{ord(char):02x} is not currently supported!")
 
-    def _write_escbkt(self, char):
+    def _write_escbkt(self, char: str):
         esc_value = to_int(self._esc, 1)
         matched = True
         if char == 'A':
@@ -337,7 +324,7 @@ class ANSITerminal(Screen):
             if self._stored_pos is not None:
                 self.move_to(*self._stored_pos)
         elif char in 'STfinhl':
-            raise Exception("ESC[%s%s escape is currently unsupported!" % (self._esc, char))
+            raise Exception(f"ESC[{self._esc}{char} escape is currently unsupported!")
         else:
             matched = False
         if matched:
@@ -374,23 +361,25 @@ class ANSITerminal(Screen):
                 self.foreground = ansi_to_cga(esc - 92)
 
 
-class AsciiCast(object):
-    def __init__(self, cast, width=None, height=None):
-        self.metadata = None
-        self.data = []
-        for line in cast.splitlines():
-            if self.metadata is None:
+class AsciiCast:
+    def __init__(self, cast: Union[bytes, str, Iterable[str]], width: int = None, height: int = None):
+        if isinstance(cast, str) or isinstance(cast, bytes):
+            cast = cast.splitlines()
+        self.metadata: Dict[str, Any] = {}
+        self.data: List[Tuple[float, str, str]] = []
+        for i, line in enumerate(cast):
+            if i == 0:
                 self.metadata = json.loads(line)
             else:
                 self.data.append(json.loads(line))
         if width is not None:
-            self.metadata['width'] = width
+            self.metadata["width"] = width
         if height is not None:
-            self.metadata['height'] = height
+            self.metadata["height"] = height
 
-    def calculate_optimal_fps(self, idle_time_limit = None):
-        min_delta = None
-        last = None
+    def calculate_optimal_fps(self, idle_time_limit: Optional[float] = None) -> float:
+        min_delta: Optional[float] = None
+        last: Optional[float] = None
         for time, event_type, data in self.data:
             if event_type == 'o':
                 if last is None:
@@ -410,16 +399,24 @@ class AsciiCast(object):
         else:
             return 1.0 / min_delta
 
-    def render(self, output_stream, font, fps=None, idle_time_limit=0, loop=0, frame_callback=None):
+    def render(
+            self,
+            output_stream: BinaryIO,
+            font,
+            fps: Optional[float] = None,
+            idle_time_limit: int = 0,
+            loop: int = 0,
+            frame_callback: Optional[Callable[[int, int], None]] = None
+    ):
         font_width, font_height = font.getsize('X')
-        width = self.metadata['width']
-        height = self.metadata['height']
+        width = self.metadata["width"]
+        height = self.metadata["height"]
         image_width = width * font_width
         image_height = height * font_height
         images = []
         if fps is None:
-            fps = math.ceil(self.calculate_optimal_fps(idle_time_limit = idle_time_limit))
-        num_frames = math.ceil(self.data[-1][0]) * fps
+            fps = math.ceil(self.calculate_optimal_fps(idle_time_limit=idle_time_limit))
+        num_frames: int = math.ceil(self.data[-1][0]) * fps
         offset = 0
         term = ANSITerminal(width, height)
         if idle_time_limit is None or idle_time_limit <= 0:
@@ -455,12 +452,15 @@ class AsciiCast(object):
                 fill_color = term.foreground
             else:
                 fill_color = term.background
-            draw.rectangle(((0, 0), (image_width + 2 * font_width, image_height + 2 * font_height)), fill=to_rgb(fill_color))
+            draw.rectangle(
+                ((0, 0), (image_width + 2 * font_width, image_height + 2 * font_height)),
+                fill=to_rgb(fill_color)
+            )
             cursor_drawn = False
             for y, r in enumerate(term.screen):
                 for x, cell in enumerate(r):
                     if cell is not None:
-                        c, foreground, background, attr = cell
+                        c, foreground, background, attr = cell.value, cell.foreground, cell.background, cell.attr
                         if term.bell:
                             foreground, background = background, foreground
                         if int(CGAAttribute.INVERSE) & int(attr):
