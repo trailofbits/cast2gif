@@ -1,6 +1,5 @@
 import json
 import math
-import pkg_resources
 from typing import Any, BinaryIO, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from PIL import Image, ImageDraw
@@ -8,9 +7,6 @@ from PIL.ImageFont import FreeTypeFont
 
 from .screen import CGAAttribute, to_rgb
 from .terminal import ANSITerminal
-
-__version__: str = pkg_resources.require("cast2gif")[0].version
-__version_name__: str = f"ToB/v{__version__}/source/Cast2Gif"
 
 
 class AsciiCast:

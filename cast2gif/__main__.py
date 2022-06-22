@@ -6,8 +6,8 @@ import sys
 
 from PIL import ImageFont
 
-from . import AsciiCast
-from .asciicast import __version_name__
+from . import __version_name__
+from .asciicast import AsciiCast
 
 
 class StatusLogger:
