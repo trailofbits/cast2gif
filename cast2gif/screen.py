@@ -1,6 +1,9 @@
 from enum import IntEnum, IntFlag
 from typing import List, Optional, Tuple, TypeVar, Union
 
+from PIL import Image, ImageDraw
+from PIL.ImageFont import FreeTypeFont
+
 T = TypeVar("T")
 
 
@@ -193,3 +196,42 @@ class Screen:
             self.col = col
         if row is not None:
             self.row = row
+
+    def render(self, font: FreeTypeFont) -> Image:
+        font_width, font_height = font.getsize('X')
+        image_width = self.width * font_width
+        image_height = self.height * font_height
+        im = Image.new("RGB", (image_width + 2 * font_width, image_height + 2 * font_height))
+        draw = ImageDraw.Draw(im)
+        if self.bell:
+            fill_color = self.foreground
+        else:
+            fill_color = self.background
+        draw.rectangle(
+            ((0, 0), (image_width + 2 * font_width, image_height + 2 * font_height)),
+            fill=to_rgb(fill_color)
+        )
+        cursor_drawn = False
+        for y, r in enumerate(self.screen):
+            for x, cell in enumerate(r):
+                if cell is not None:
+                    c, foreground, background, attr = cell.value, cell.foreground, cell.background, cell.attr
+                    if self.bell:
+                        foreground, background = background, foreground
+                    if int(CGAAttribute.INVERSE) & int(attr):
+                        foreground, background = background, foreground
+                    if not self.hide_cursor and self.row == y and self.col == x:
+                        foreground, background = background, foreground
+                        cursor_drawn = True
+                    pos = (font_width * (x + 1), font_height * (y + 1))
+                    draw.rectangle((pos, (pos[0] + font_width + 1, pos[1] + 1)), fill=to_rgb(background))
+                    draw.text((pos[0], pos[1]), c, fill=to_rgb(foreground), font=font)
+
+        if not self.hide_cursor and not cursor_drawn:
+            pos = (font_width * (self.col + 1) + 1, font_height * (self.row + 1) + 1)
+            draw.rectangle(
+                ((pos[0], pos[1] + font_height), (pos[0] + font_width, pos[1])),
+                fill=to_rgb(self.foreground)
+            )
+
+        return im

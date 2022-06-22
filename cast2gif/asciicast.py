@@ -59,8 +59,6 @@ class AsciiCast:
         font_width, font_height = font.getsize('X')
         width = self.metadata["width"]
         height = self.metadata["height"]
-        image_width = width * font_width
-        image_height = height * font_height
         images = []
         if fps is None:
             fps = math.ceil(self.calculate_optimal_fps(idle_time_limit=idle_time_limit))
@@ -75,9 +73,7 @@ class AsciiCast:
         for frame in range(num_frames + 1):
             if frame_callback is not None:
                 frame_callback(frame, num_frames)
-            im = Image.new('RGB', (image_width + 2 * font_width, image_height + 2 * font_height))
-            images.append(im)
-            draw = ImageDraw.Draw(im)
+
             frame_start = float(frame) / float(fps)
             frame_end = frame_start + 1.0 / float(fps)
             is_idle = True
@@ -96,32 +92,9 @@ class AsciiCast:
                     continue
             else:
                 idle_frames = 0
-            if term.bell:
-                fill_color = term.foreground
-            else:
-                fill_color = term.background
-            draw.rectangle(
-                ((0, 0), (image_width + 2 * font_width, image_height + 2 * font_height)),
-                fill=to_rgb(fill_color)
-            )
-            cursor_drawn = False
-            for y, r in enumerate(term.screen):
-                for x, cell in enumerate(r):
-                    if cell is not None:
-                        c, foreground, background, attr = cell.value, cell.foreground, cell.background, cell.attr
-                        if term.bell:
-                            foreground, background = background, foreground
-                        if int(CGAAttribute.INVERSE) & int(attr):
-                            foreground, background = background, foreground
-                        if not term.hide_cursor and term.row == y and term.col == x:
-                            foreground, background = background, foreground
-                            cursor_drawn = True
-                        pos = (font_width * (x + 1), font_height * (y + 1))
-                        draw.rectangle((pos, (pos[0] + font_width + 1, pos[1] + 1)), fill=to_rgb(background))
-                        draw.text((pos[0], pos[1]), c, fill=to_rgb(foreground), font=font)
-            if not term.hide_cursor and not cursor_drawn:
-                pos = (font_width * (term.col + 1) + 1, font_height * (term.row + 1) + 1)
-                draw.rectangle(((pos[0], pos[1] + font_height), (pos[0] + font_width, pos[1])), fill=to_rgb(term.foreground))
+
+            images.append(term.render(font))
+
             term.bell = False
 
         images[0].save(output_stream, save_all=True,

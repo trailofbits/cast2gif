@@ -177,7 +177,7 @@ def main(argv=None):
             frame_callback=frame_callback,
         )
 
-        if not output_stream.isatty() and not args.quiet:
+        if not output_stream.isatty() and not args.quiet and sys.stderr.isatty():
             status_logger.clear()
             sys.stderr.write("Saved AsciiCast to %s\n" % output_stream.name)
 
