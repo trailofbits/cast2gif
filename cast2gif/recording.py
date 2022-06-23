@@ -2,9 +2,12 @@ import codecs
 import math
 import os
 import pty
+from select import select
 import sys
+import termios
 import time as time_module
-from typing import BinaryIO, Callable, Iterable, List, Optional, Type, TypeVar
+import tty
+from typing import BinaryIO, Callable, Generic, Iterable, List, Optional, Type, TypeVar
 
 from PIL.ImageFont import FreeTypeFont
 
@@ -44,49 +47,8 @@ class TerminalRecording:
         self.events: List[TerminalEvent] = []
 
     @classmethod
-    def record(cls: Type[C], args: Iterable[str], encoding: str = "utf-8") -> C:
-        class Recorder:
-            def __init__(self, recording_type: C, encoding: str = "utf-8"):
-                self.recording_type: C = recording_type
-                self.recording: Optional[C] = None
-                self.decoder = codecs.getincrementaldecoder(encoding)()
-
-            def __call__(self, fd: int) -> bytes:
-                if self.recording is None:
-                    try:
-                        term_size = os.get_terminal_size(fd)
-                        if term_size.columns > 0 and term_size.lines > 0:
-                            width, height = term_size.columns, term_size.lines
-                        else:
-                            width, height = None, None
-                    except OSError:
-                        width, height = None, None
-                    self.recording = self.recording_type(width, height)
-
-                data = os.read(fd, 255)
-                if not data:
-                    # close the decoder, which will throw an error if the stream was incomplete:
-                    try:
-                        new_term_text = self.decoder.decode(bytes(), True)
-                    except UnicodeDecodeError:
-                        sys.stderr.write("Warning: reached the end of the program output while decoding UTF-8; "
-                                         "ignoring...\n")
-                        new_term_text = ""
-                else:
-                    new_term_text = self.decoder.decode(data)
-                if new_term_text:
-                    self.recording.events.append(TerminalOutput(data=new_term_text))
-                return data
-
-        recorder = Recorder(cls, encoding=encoding)
-        retval = pty.spawn(args, recorder)
-        if recorder.recording is None:
-            recording = cls()
-            recording.return_value = retval
-            return recording
-        else:
-            recorder.recording.return_value = retval
-            return recorder.recording
+    def record(cls: Type[C], argv: Iterable[str], encoding: str = "utf-8") -> C:
+        return TerminalRecorder(recording_type=cls, encoding=encoding).record(argv)
 
     def calculate_optimal_fps(self, idle_time_limit: Optional[float] = None) -> float:
         min_delta: Optional[float] = None
@@ -188,3 +150,98 @@ class TerminalRecording:
                        append_images=images[1:],
                        duration=1000.0 / float(fps),
                        loop=loop)
+
+
+R = TypeVar("R", bound=TerminalRecording)
+
+
+class TerminalRecorder(Generic[R]):
+    def __init__(self, recording_type: Type[R] = TerminalRecording, encoding: str = "utf-8"):
+        self.recording_type: Type[R] = recording_type
+        self.recording: Optional[R] = None
+        self.decoder = codecs.getincrementaldecoder(encoding)()
+
+    def spawn(self, argv: Iterable[str]) -> int:
+        """Create a spawned process."""
+        if not isinstance(argv, list) and not isinstance(argv, tuple):
+            argv = list(argv)
+        sys.audit("pty.spawn", argv)
+        pid, master_fd = pty.fork()
+        if pid == pty.CHILD:
+            # we are running in the child, so execute the process:
+            os.execlp(argv[0], *argv)
+            assert False  # this should never be reachable
+        try:
+            mode = termios.tcgetattr(pty.STDIN_FILENO)
+            tty.setraw(pty.STDIN_FILENO)
+            restore = True
+        except termios.error:
+            restore = False
+            mode = 0
+        try:
+
+            fds = [master_fd, pty.STDIN_FILENO]
+            while True:
+                rfds, wfds, xfds = select(fds, [], [])
+                if master_fd in rfds:
+                    data = self.read(master_fd)
+                    if not data:  # Reached EOF.
+                        break
+                    else:
+                        os.write(pty.STDOUT_FILENO, data)
+                if pty.STDIN_FILENO in rfds:
+                    data = os.read(pty.STDIN_FILENO, 1024)
+                    if not data:
+                        fds.remove(pty.STDIN_FILENO)
+                    else:
+                        while data:
+                            n = os.write(master_fd, data)
+                            data = data[n:]
+
+        except OSError:
+            pass
+        finally:
+            if restore:
+                termios.tcsetattr(pty.STDIN_FILENO, termios.TCSAFLUSH, mode)
+
+        os.close(master_fd)
+        return os.waitpid(pid, 0)[1]
+
+    def read(self, fd: int, num_bytes: int = 255) -> bytes:
+        if self.recording is None:
+            try:
+                term_size = os.get_terminal_size(fd)
+                if term_size.columns > 0 and term_size.lines > 0:
+                    width, height = term_size.columns, term_size.lines
+                else:
+                    width, height = None, None
+            except OSError:
+                width, height = None, None
+            self.recording = self.recording_type(width, height)
+
+        data = os.read(fd, num_bytes)
+        if not data:
+            # close the decoder, which will throw an error if the stream was incomplete:
+            try:
+                new_term_text = self.decoder.decode(bytes(), True)
+            except UnicodeDecodeError:
+                sys.stderr.write("Warning: reached the end of the program output while decoding UTF-8; "
+                                 "ignoring...\n")
+                new_term_text = ""
+            # we also have to close stdin, otherwise the pty will hang forever:
+            sys.stdin.close()
+        else:
+            new_term_text = self.decoder.decode(data)
+        if new_term_text:
+            self.recording.events.append(TerminalOutput(data=new_term_text))
+        return data
+
+    def record(self, argv: Iterable[str]) -> R:
+        retval = self.spawn(argv)
+        if self.recording is None:
+            recording = self.recording_type()
+            recording.return_value = retval
+            return recording
+        else:
+            self.recording.return_value = retval
+            return self.recording

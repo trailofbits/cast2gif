@@ -157,8 +157,8 @@ def main(argv=None):
     elif args.exec:
         input_isatty = False
         recording: TerminalRecording = TerminalRecording.record(args.exec)
-        # TODO: Finish this!
-        exit(0)
+        if recording.return_value != 0 and sys.stderr.isatty() and not args.quiet:
+            sys.stderr.write(f"\n\nWarning: `{' '.join(args.exec)}` exited with code {recording.return_value}\n\n")
     else:
         if args.ASCIICAST == "-":
             input_stream = sys.stdin
