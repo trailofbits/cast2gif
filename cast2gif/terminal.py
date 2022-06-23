@@ -1,7 +1,7 @@
 from enum import IntEnum
-from typing import List, Optional, SupportsIndex, SupportsInt, Tuple, Union
+from typing import Optional, SupportsIndex, SupportsInt, Tuple, Union
 
-from cast2gif.screen import Screen, ScreenCell, CGAColor, CGAAttribute
+from cast2gif.screen import Screen, CGAColor, CGAAttribute
 
 
 def to_int(n: Union[str, bytes, SupportsInt, SupportsIndex], default: Optional[int] = None) -> Optional[int]:

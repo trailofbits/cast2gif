@@ -2,7 +2,7 @@ from enum import IntEnum, IntFlag
 import itertools
 from typing import Iterable, List, Optional, Tuple, TypeVar, Union
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
 
 T = TypeVar("T")
@@ -204,8 +204,19 @@ class Screen:
         if row is not None:
             self.row = row
 
-    def render(self, font: FreeTypeFont, include_scrollback: bool = False) -> Image:
+    def render(self, font: FreeTypeFont, include_scrollback: bool = False, antialias: bool = True) -> Image:
         font_width, font_height = font.getsize('X')
+        if antialias:
+            scale_factor = 2
+            desired_width = font_width * scale_factor
+            desired_height = font_height * scale_factor
+            while True:
+                font = ImageFont.truetype(font=font.path, size=font.size + 1)
+                font_width, font_height = font.getsize('X')
+                if font_width >= desired_width and font_height >= desired_height:
+                    break
+        else:
+            scale_factor = 1
         image_width = self.width * font_width
         image_height = self.height * font_height
         if include_scrollback:
@@ -246,5 +257,8 @@ class Screen:
                 ((pos[0], pos[1] + font_height), (pos[0] + font_width, pos[1])),
                 fill=to_rgb(self.foreground)
             )
+
+        if antialias:
+            im = im.resize((image_width // scale_factor, image_height // scale_factor), resample=Image.ANTIALIAS)
 
         return im
