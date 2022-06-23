@@ -8,6 +8,7 @@ from PIL import ImageFont
 
 from . import __version_name__
 from .asciicast import AsciiCast
+from .recording import TerminalRecording
 
 
 class StatusLogger:
@@ -59,7 +60,12 @@ def main(argv=None):
         help="Print version information and exit",
     )
     parser.add_argument(
-        "ASCIICAST", type=str, help="The AsciiCast v2 file to convert, or '-' for STDIN"
+        "ASCIICAST", type=str, nargs="?", default=None,
+        help="The AsciiCast v2 file to convert, or '-' for STDIN (the default)"
+    )
+    parser.add_argument(
+        "--exec", "-c", nargs=argparse.REMAINDER, help="Instead of parsing an AsciiCast v2 file, run the command "
+                                                       "immediately after `--exec` and use its output"
     )
     parser.add_argument(
         "-o",
@@ -139,16 +145,31 @@ def main(argv=None):
             "SourceCodePro-Regular.ttf",
         )
 
-    if args.ASCIICAST == "-":
-        input_stream = sys.stdin
+    if args.ASCIICAST is None and not args.exec:
+        parser.print_usage(sys.stderr)
+        sys.stderr.write("\nerror: you must provide either an AsciiCast v2 input file or use the `--exec` argument\n")
+        sys.exit(1)
+    elif args.ASCIICAST is not None and args.exec:
+        parser.print_usage(sys.stderr)
+        sys.stderr.write("\nerror: you may not provide both an AsciiCast v2 input file or use the `--exec` argument at "
+                         "the same time\n")
+        sys.exit(1)
+    elif args.exec:
+        input_isatty = False
+        recording: TerminalRecording = TerminalRecording.record(args.exec)
+        # TODO: Finish this!
+        exit(0)
     else:
-        input_stream = open(args.ASCIICAST, "rb")
-    try:
-        input_isatty = input_stream.isatty()
-        cast = AsciiCast(input_stream.read(), width=args.width, height=args.height)
-    finally:
-        if input_stream != sys.stdin:
-            input_stream.close()
+        if args.ASCIICAST == "-":
+            input_stream = sys.stdin
+        else:
+            input_stream = open(args.ASCIICAST, "rb")
+        try:
+            input_isatty = input_stream.isatty()
+            recording = AsciiCast.load(input_stream.read(), width=args.width, height=args.height)
+        finally:
+            if input_stream != sys.stdin:
+                input_stream.close()
 
     if args.output is None:
         if input_isatty:
@@ -177,9 +198,9 @@ def main(argv=None):
             frame_callback = status_logger.log_frame
 
         if args.screenshot:
-            cast.screenshot(output_stream, font, frame_callback)
+            recording.screenshot(output_stream, font, frame_callback)
         else:
-            cast.render(
+            recording.render(
                 output_stream,
                 font,
                 fps=args.fps,
