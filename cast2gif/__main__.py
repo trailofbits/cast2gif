@@ -76,6 +76,12 @@ def main(argv=None):
         help="Overwrite the output file even if it already exists",
     )
     parser.add_argument(
+        "--screenshot",
+        "-sc",
+        action="store_true",
+        help="Render a screenshot rather than an animated gif"
+    )
+    parser.add_argument(
         "--font",
         type=str,
         default=None,
@@ -162,23 +168,29 @@ def main(argv=None):
         output_stream = open(args.output, "wb")
     try:
         font = ImageFont.truetype(font=args.font, size=args.font_size)
+
         if args.quiet or not sys.stderr.isatty():
             status_logger = None
-            frame_callback = None
+            frame_callback = lambda *_: None
         else:
             status_logger = StatusLogger()
             frame_callback = status_logger.log_frame
-        cast.render(
-            output_stream,
-            font,
-            fps=args.fps,
-            idle_time_limit=args.idle_time_limit,
-            loop=args.loop,
-            frame_callback=frame_callback,
-        )
+
+        if args.screenshot:
+            cast.screenshot(output_stream, font, frame_callback)
+        else:
+            cast.render(
+                output_stream,
+                font,
+                fps=args.fps,
+                idle_time_limit=args.idle_time_limit,
+                loop=args.loop,
+                frame_callback=frame_callback
+            )
 
         if not output_stream.isatty() and not args.quiet and sys.stderr.isatty():
-            status_logger.clear()
+            if status_logger is not None:
+                status_logger.clear()
             sys.stderr.write("Saved AsciiCast to %s\n" % output_stream.name)
 
     finally:

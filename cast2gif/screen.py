@@ -205,22 +205,23 @@ class Screen:
             self.row = row
 
     def render(self, font: FreeTypeFont, include_scrollback: bool = False, antialias: bool = True) -> Image:
-        font_width, font_height = font.getsize('X')
         if antialias:
             scale_factor = 2
-            desired_width = font_width * scale_factor
-            desired_height = font_height * scale_factor
-            while True:
-                font = ImageFont.truetype(font=font.path, size=font.size + 1)
-                font_width, font_height = font.getsize('X')
-                if font_width >= desired_width and font_height >= desired_height:
-                    break
+            font = ImageFont.truetype(font=font.path, size=font.size * scale_factor)
+            # desired_width = font_width * scale_factor
+            # desired_height = font_height * scale_factor
+            # while True:
+            #     font = ImageFont.truetype(font=font.path, size=font.size + 1)
+            #     font_width, font_height = font.getsize('X')
+            #     if font_width >= desired_width and font_height >= desired_height:
+            #         break
         else:
             scale_factor = 1
+        font_width, font_height = font.getsize('X')
         image_width = self.width * font_width
         image_height = self.height * font_height
         if include_scrollback:
-            image_height += len(self.scroll_buffer)
+            image_height += len(self.scroll_buffer) * font_height
         im = Image.new("RGB", (image_width + 2 * font_width, image_height + 2 * font_height))
         draw = ImageDraw.Draw(im)
         if self.bell:

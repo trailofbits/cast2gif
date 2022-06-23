@@ -47,6 +47,23 @@ class AsciiCast:
         else:
             return 1.0 / min_delta
 
+    def screenshot(
+            self,
+            output_stream: BinaryIO,
+            font: FreeTypeFont,
+            event_callback: Callable[[int, int], None] = lambda *_: None
+    ):
+        width = self.metadata["width"]
+        height = self.metadata["height"]
+        term = ANSITerminal(width, height, scrollback=None)
+        n = len(self.data)
+        for i, (time, event_type, data) in enumerate(self.data):
+            event_callback(i, n)
+            if event_type != 'o':
+                continue
+            term.write(data)
+        term.render(font, include_scrollback=True).save(output_stream)
+
     def render(
             self,
             output_stream: BinaryIO,
@@ -54,9 +71,8 @@ class AsciiCast:
             fps: Optional[float] = None,
             idle_time_limit: int = 0,
             loop: int = 0,
-            frame_callback: Optional[Callable[[int, int], None]] = None
+            frame_callback: Callable[[int, int], None] = lambda *_: None
     ):
-        font_width, font_height = font.getsize('X')
         width = self.metadata["width"]
         height = self.metadata["height"]
         images = []
@@ -71,8 +87,7 @@ class AsciiCast:
             max_idle_frames = int(idle_time_limit * fps + 0.5)
         idle_frames = 0
         for frame in range(num_frames + 1):
-            if frame_callback is not None:
-                frame_callback(frame, num_frames)
+            frame_callback(frame, num_frames)
 
             frame_start = float(frame) / float(fps)
             frame_end = frame_start + 1.0 / float(fps)
