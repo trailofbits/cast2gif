@@ -105,6 +105,7 @@ class Screen:
         self.attr: CGAAttribute = CGAAttribute.PLAIN
         self.bell = False
         self.hide_cursor = False
+        self.tab_width: int = 8
         self.clear(2)
 
     def clear(self, screen_portion: Union[int, ScreenPortion] = ScreenPortion.CURSOR_TO_END_OF_SCREEN):
@@ -154,6 +155,8 @@ class Screen:
             self.row += 1
         elif char == '\r':
             self.col = 0
+        elif char == '\t':
+            self.col = (self.col // self.tab_width + 1) * self.tab_width
         elif char == '\b':
             # backspace
             if self.col > 0:
