@@ -206,7 +206,7 @@ class Screen:
 
     def render(self, font: FreeTypeFont, include_scrollback: bool = False, antialias: bool = True) -> Image:
         if antialias:
-            scale_factor = 2
+            scale_factor = 4
             font = ImageFont.truetype(font=font.path, size=font.size * scale_factor)
             # desired_width = font_width * scale_factor
             # desired_height = font_height * scale_factor
