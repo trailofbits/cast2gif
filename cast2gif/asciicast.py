@@ -2,10 +2,8 @@ import json
 import math
 from typing import Any, BinaryIO, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
 
-from .screen import CGAAttribute, to_rgb
 from .terminal import ANSITerminal
 
 
