@@ -7,10 +7,11 @@ import sys
 import termios
 import time as time_module
 import tty
-from typing import BinaryIO, Callable, Generic, Iterable, List, Optional, Type, TypeVar
+from typing import BinaryIO, Callable, Generic, Iterable, List, Optional, Type, TypeVar, Union
 
 from PIL.ImageFont import FreeTypeFont
 
+from .fonts import FontCollection
 from .terminal import ANSITerminal
 
 
@@ -76,7 +77,7 @@ class TerminalRecording:
     def screenshot(
             self,
             output_stream: BinaryIO,
-            font: FreeTypeFont,
+            font: Union[FreeTypeFont, FontCollection],
             event_callback: Callable[[int, int], None] = lambda *_: None
     ):
         width = self.width
@@ -97,7 +98,7 @@ class TerminalRecording:
     def render(
             self,
             output_stream: BinaryIO,
-            font: FreeTypeFont,
+            font: Union[FreeTypeFont, FontCollection],
             fps: Optional[float] = None,
             idle_time_limit: int = 0,
             loop: int = 0,

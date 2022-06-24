@@ -2,12 +2,12 @@
 
 import argparse
 import os
+from pathlib import Path
 import sys
-
-from PIL import ImageFont
 
 from . import __version_name__
 from .asciicast import AsciiCast
+from .fonts import FontCollection
 from .recording import TerminalRecording
 
 
@@ -90,8 +90,9 @@ def main(argv=None):
     parser.add_argument(
         "--font",
         type=str,
-        default=None,
-        help="Path to a TrueType font for rendering; defaults to SourceCodePro",
+        action="append",
+        help="Path to a TrueType font for rendering; defaults to SourceCodePro; this argument can be supplied multiple "
+             "times, with additional fonts used in the event that one is missing a required glyph",
     )
     parser.add_argument(
         "-s", "--font-size", type=int, default=12, help="Font size (default=12)"
@@ -138,13 +139,6 @@ def main(argv=None):
         print(__version_name__)
         sys.exit(0)
 
-    if args.font is None:
-        args.font = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "Source_Code_Pro",
-            "SourceCodePro-Regular.ttf",
-        )
-
     if args.ASCIICAST is None and not args.exec:
         parser.print_usage(sys.stderr)
         sys.stderr.write("\nerror: you must provide either an AsciiCast v2 input file or use the `--exec` argument\n")
@@ -188,7 +182,16 @@ def main(argv=None):
             sys.exit(1)
         output_stream = open(args.output, "wb")
     try:
-        font = ImageFont.truetype(font=args.font, size=args.font_size)
+        if not args.font:
+            font_dir = Path(__file__).absolute().parent / "fonts"
+            font = FontCollection(
+                font_dir / "FiraCode" / "Fira Code Regular Nerd Font Complete Mono.otf",
+                font_dir / "Hack" / "Hack Regular Nerd Font Complete Mono.ttf",
+                font_dir / "SourceCodePro" / "SourceCodePro-Regular.ttf",
+                size=args.font_size
+            )
+        else:
+            font = FontCollection(*args.font, size=args.font_size)
 
         if args.quiet or not sys.stderr.isatty():
             status_logger = None

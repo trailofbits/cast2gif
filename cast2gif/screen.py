@@ -2,8 +2,11 @@ from enum import IntEnum, IntFlag
 import itertools
 from typing import Iterable, List, Optional, Tuple, TypeVar, Union
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
+
+from .fonts import FontCollection
+
 
 T = TypeVar("T")
 
@@ -207,17 +210,15 @@ class Screen:
         if row is not None:
             self.row = row
 
-    def render(self, font: FreeTypeFont, include_scrollback: bool = False, antialias: bool = True) -> Image:
+    def render(self, font: Union[FreeTypeFont, FontCollection], include_scrollback: bool = False,
+               antialias: bool = True) -> Image:
+        if not isinstance(font, FontCollection):
+            font = FontCollection(font, size=font.size)
+        elif len(font) <= 0:
+            raise ValueError("The FontCollection must contain at least one font!")
         if antialias:
             scale_factor = 4
-            font = ImageFont.truetype(font=font.path, size=font.size * scale_factor)
-            # desired_width = font_width * scale_factor
-            # desired_height = font_height * scale_factor
-            # while True:
-            #     font = ImageFont.truetype(font=font.path, size=font.size + 1)
-            #     font_width, font_height = font.getsize('X')
-            #     if font_width >= desired_width and font_height >= desired_height:
-            #         break
+            font = font.with_size(font.size * scale_factor)
         else:
             scale_factor = 1
         font_width, font_height = font.getsize('X')
@@ -253,7 +254,7 @@ class Screen:
                         cursor_drawn = True
                     pos = (font_width * (x + 1), font_height * (y + 1))
                     draw.rectangle((pos, (pos[0] + font_width + 1, pos[1] + 1)), fill=to_rgb(background))
-                    draw.text((pos[0], pos[1]), c, fill=to_rgb(foreground), font=font)
+                    draw.text((pos[0], pos[1]), c, fill=to_rgb(foreground), font=font.get_font(c))
 
         if not self.hide_cursor and not cursor_drawn:
             pos = (font_width * (self.col + 1) + 1, font_height * (self.row + 1) + 1)

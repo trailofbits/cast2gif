@@ -54,4 +54,10 @@ optional arguments:
 
 Cast2Gif is licensed and distributed under the [AGPLv3](LICENSE) license. [Contact us](mailto:opensource@trailofbits.com) if you’re looking for an exception to the terms.
 
-Adobe's SourceCodePro font is distributed with Cast2Gif and is licensed under the [SIL OPEN FONT LICENSE Version 1.1](cast2gif/Source_Code_Pro/OFL.txt).
+Several fonts are distributed with Cast2Gif. They are licensed as follows:
+- **Fira Code Nerd Font**: Copyright © 2014, The Fira Code Project Authors and distributed under the
+  [SIL Open Font License, Version 1.1](cast2gif/fonts/FiraCode/LICENSE)
+- **Hack Nerd Font**: Copyright © 2018, Source Foundry Authors and distributed under the
+  [MIT License](cast2gif/fonts/Hack/LICENSE.md)
+- **Adobe SourceCodePro**: Copyright © 2010, 2012 Adobe Systems Incorporated and distributed under the
+  [SIL Open Font License, Version 1.1](cast2gif/fonts/SourceCodePro/OFL.txt)
