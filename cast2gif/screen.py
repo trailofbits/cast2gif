@@ -211,7 +211,7 @@ class Screen:
             self.row = row
 
     def render(self, font: Union[FreeTypeFont, FontCollection], include_scrollback: bool = False,
-               antialias: bool = True) -> Image:
+               antialias: bool = True, baseline_skip: Optional[int] = None) -> Image:
         if not isinstance(font, FontCollection):
             font = FontCollection(font, size=font.size)
         elif len(font) <= 0:
@@ -221,7 +221,12 @@ class Screen:
             font = font.with_size(font.size * scale_factor)
         else:
             scale_factor = 1
-        font_width, font_height = font.getsize('X')
+        font_width = font.getsize('X')[0]
+        if baseline_skip is None:
+            baseline_skip = font.size // 4
+        else:
+            baseline_skip *= scale_factor
+        font_height = font.size + baseline_skip
         image_width = self.width * font_width
         image_height = self.height * font_height
         if include_scrollback:
