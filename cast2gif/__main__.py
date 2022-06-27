@@ -9,7 +9,7 @@ from typing import Optional
 from . import __version_name__
 from .asciicast import AsciiCast
 from .fonts import FontCollection
-from .recording import TerminalRecording
+from .recording import AutoTerminalSize, FixedTerminalSize, InheritedTerminalSize, TerminalRecording
 
 
 class StatusLogger:
@@ -143,6 +143,10 @@ def main(argv=None):
     parser.add_argument(
         "--height", type=int, default=None, help="Override the output height"
     )
+    parser.add_argument(
+        "--auto-size", action="store_true", help="Override the output dimensions to be wide enough to fit every line; "
+                                                 "if specified, this overrides the `--width` option"
+    )
 
     if argv is None:
         argv = sys.argv
@@ -170,7 +174,17 @@ def main(argv=None):
             ps1 = args.ps1
         else:
             ps1 = os.getenv("PS1", "\u001b[32m$\u001b[0m ")
-        recording: TerminalRecording = TerminalRecording.record(args.exec, ps1=ps1)
+        if args.auto_size:
+            term_size = AutoTerminalSize()
+        elif args.width is not None and args.height is not None:
+            term_size = FixedTerminalSize(width=args.width, height=args.height)
+        else:
+            term_size = InheritedTerminalSize()
+            if args.width is not None:
+                term_size.width = args.width
+            elif args.height is not None:
+                term_size.height = args.height
+        recording: TerminalRecording = TerminalRecording.record(args.exec, ps1=ps1, terminal_size=term_size)
         if recording.return_value != 0 and sys.stderr.isatty() and not args.quiet:
             sys.stderr.write(f"\n\nWarning: `{' '.join(args.exec)}` exited with code {recording.return_value}\n\n")
     else:

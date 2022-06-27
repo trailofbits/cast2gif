@@ -159,3 +159,37 @@ class ANSITerminal(Screen):
                 self.foreground = ansi_to_cga(esc - 82)
             elif esc in range(100, 108):
                 self.foreground = ansi_to_cga(esc - 92)
+
+
+class NullScreen:
+    def __getitem__(self, item) -> "NullScreen":
+        return NullScreen()
+
+    def __setitem__(self, key, value):
+        pass
+
+    def __add__(self, other):
+        return NullScreen()
+
+
+class InfiniteWidthTerminal(ANSITerminal):
+    def __init__(self):
+        self._col: int = 0
+        self.maximum_width: int = 0
+        super().__init__(width=99999999999999999999, height=99999999999999999999, scrollback=0)
+        self.screen = NullScreen()  # type: ignore
+
+    @property
+    def col(self) -> int:
+        return self._col
+
+    @col.setter
+    def col(self, new_value: int):
+        self._col = new_value
+        self.maximum_width = max(self.maximum_width, new_value)
+
+    def clear(self, *args, **kwargs):
+        pass
+
+    def erase_line(self, line_portion: int = 0):
+        pass

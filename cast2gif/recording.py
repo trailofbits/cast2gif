@@ -12,7 +12,7 @@ from typing import BinaryIO, Callable, Generic, Iterable, List, Optional, Type, 
 from PIL.ImageFont import FreeTypeFont
 
 from .fonts import FontCollection
-from .terminal import ANSITerminal
+from .terminal import ANSITerminal, InfiniteWidthTerminal
 
 
 C = TypeVar("C")
@@ -31,7 +31,36 @@ class TerminalOutput(TerminalEvent):
         self.data: str = data
 
 
-class TerminalRecording:
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class ConstantTerminalSize(Protocol):
+    width: int
+    height: int
+
+
+@runtime_checkable
+class DynamicTerminalSize(Protocol):
+    @property
+    def width(self) -> int:
+        return 0
+
+    @property
+    def height(self) -> int:
+        return 0
+
+
+TerminalSize = Union[ConstantTerminalSize, DynamicTerminalSize]
+
+
+class FixedTerminalSize(ConstantTerminalSize):
+    def __init__(self, width: int = 80, height: int = 24):
+        self.width: int = width
+        self.height: int = height
+
+
+class InheritedTerminalSize(FixedTerminalSize):
     def __init__(self, width: Optional[int] = None, height: Optional[int] = None):
         if width is None or height is None:
             try:
@@ -42,14 +71,64 @@ class TerminalRecording:
                     height = term_size.lines
             except OSError:
                 pass
-        self.width: Optional[int] = width
-        self.height: Optional[int] = height
+        if width is None:
+            width = 80
+        if height is None:
+            height = 24
+        super().__init__(width=width, height=height)
+
+
+class AutoTerminalSize(DynamicTerminalSize):
+    def __init__(self):
+        self.recording: Optional[TerminalRecording] = None
+        self._width: int = -1
+        self._height: int = -1
+
+    @property
+    def width(self) -> int:
+        if self.recording is None:
+            return InheritedTerminalSize().width
+        elif self._width < 0:
+            term = InfiniteWidthTerminal()
+            for i, event in enumerate(self.recording.events):
+                if not isinstance(event, TerminalOutput):
+                    continue
+                term.write(event.data)
+            self._width = term.maximum_width
+        return self._width
+
+    @property
+    def height(self) -> int:
+        if self._height < 0:
+            self._height = InheritedTerminalSize().height
+        return self._height
+
+
+class TerminalRecording:
+    def __init__(self, terminal_size: TerminalSize = InheritedTerminalSize()):
+        self._size: TerminalSize = None  # type: ignore
+        self.size = terminal_size
         self.return_value: Optional[int] = None
         self.events: List[TerminalEvent] = []
 
+    @property
+    def size(self) -> TerminalSize:
+        return self._size
+
+    @size.setter
+    def size(self, new_size: TerminalSize):
+        if isinstance(self._size, AutoTerminalSize):
+            self._size.recording = None
+        if isinstance(new_size, AutoTerminalSize):
+            if new_size.recording is not None and new_size.recording is not self:
+                raise ValueError("The auto terminal size object is already assigned to a different recording")
+            new_size.recording = self
+        self._size = new_size
+
     @classmethod
-    def record(cls: Type[C], argv: Iterable[str], encoding: str = "utf-8", ps1: Optional[str] = None) -> C:
-        recorder = TerminalRecorder(recording_type=cls, encoding=encoding)
+    def record(cls: Type[C], argv: Iterable[str], terminal_size: TerminalSize = InheritedTerminalSize(),
+               encoding: str = "utf-8", ps1: Optional[str] = None) -> C:
+        recorder = TerminalRecorder(recording=cls(terminal_size), encoding=encoding)
         recording = recorder.record(argv)
         if ps1 is not None:
             new_events: List[TerminalEvent] = [
@@ -87,8 +166,8 @@ class TerminalRecording:
             font: Union[FreeTypeFont, FontCollection],
             event_callback: Callable[[int, int], None] = lambda *_: None
     ):
-        width = self.width
-        height = self.height
+        width = self.size.width
+        height = self.size.height
         if width is None:
             width = 80
         if height is None:
@@ -111,8 +190,8 @@ class TerminalRecording:
             loop: int = 0,
             frame_callback: Callable[[int, int], None] = lambda *_: None
     ):
-        width = self.width
-        height = self.height
+        width = self.size.width
+        height = self.size.height
         if width is None:
             width = 80
         if height is None:
@@ -164,9 +243,8 @@ R = TypeVar("R", bound=TerminalRecording)
 
 
 class TerminalRecorder(Generic[R]):
-    def __init__(self, recording_type: Type[R] = TerminalRecording, encoding: str = "utf-8"):
-        self.recording_type: Type[R] = recording_type
-        self.recording: Optional[R] = None
+    def __init__(self, recording: R, encoding: str = "utf-8"):
+        self.recording: R = recording
         self.decoder = codecs.getincrementaldecoder(encoding)()
 
     def spawn(self, argv: Iterable[str]) -> int:
@@ -216,17 +294,6 @@ class TerminalRecorder(Generic[R]):
         return os.waitpid(pid, 0)[1]
 
     def read(self, fd: int, num_bytes: int = 255) -> bytes:
-        if self.recording is None:
-            try:
-                term_size = os.get_terminal_size(fd)
-                if term_size.columns > 0 and term_size.lines > 0:
-                    width, height = term_size.columns, term_size.lines
-                else:
-                    width, height = None, None
-            except OSError:
-                width, height = None, None
-            self.recording = self.recording_type(width, height)
-
         data = os.read(fd, num_bytes)
         if not data:
             # close the decoder, which will throw an error if the stream was incomplete:
@@ -246,10 +313,5 @@ class TerminalRecorder(Generic[R]):
 
     def record(self, argv: Iterable[str]) -> R:
         retval = self.spawn(argv)
-        if self.recording is None:
-            recording = self.recording_type()
-            recording.return_value = retval
-            return recording
-        else:
-            self.recording.return_value = retval
-            return self.recording
+        self.recording.return_value = retval
+        return self.recording

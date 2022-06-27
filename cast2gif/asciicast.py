@@ -1,12 +1,12 @@
 import json
 from typing import Any, Dict, Iterable, Optional, Type, Union
 
-from .recording import C, TerminalOutput, TerminalRecording
+from .recording import AutoTerminalSize, C, TerminalOutput, TerminalRecording, TerminalSize
 
 
 class AsciiCast(TerminalRecording):
-    def __init__(self, width: Optional[int] = None, height: Optional[int] = None):
-        super().__init__(width=width, height=height)
+    def __init__(self, terminal_size: TerminalSize = AutoTerminalSize()):
+        super().__init__(terminal_size)
 
         self._metadata: Dict[str, Any] = {}
 
