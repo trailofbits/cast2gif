@@ -13,8 +13,10 @@ from .recording import TerminalRecording
 
 
 class StatusLogger:
-    def __init__(self, width: int = 30):
+    def __init__(self, width: Optional[int] = None):
         self.last_percent: int = -1
+        if width is None:
+            width = max(os.get_terminal_size().columns, 30)
         self.width: int = width
 
     def log_frame(self, frame: int, num_frames: int):
@@ -25,7 +27,7 @@ class StatusLogger:
             sys.stderr.write("[")
             bar_length = int((percent_done / 100.0) * (self.width - 2) + 0.5)
 
-            percent_string = "%.1f%%" % percent_done
+            percent_string = f"{percent_done:.1f}%"
 
             percent_start = int((self.width - 2 - len(percent_string)) / 2)
 
@@ -46,7 +48,8 @@ class StatusLogger:
             self.last_percent = percent_done
 
     def clear(self):
-        sys.stderr.write("\r%s\r" % " " * self.width)
+        sys.stderr.write(f"\r{' ' * self.width}\r")
+        sys.stderr.flush()
 
 
 def main(argv=None):
