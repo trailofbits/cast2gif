@@ -4,6 +4,7 @@ import argparse
 import os
 from pathlib import Path
 import sys
+from typing import Optional
 
 from . import __version_name__
 from .asciicast import AsciiCast
@@ -66,6 +67,16 @@ def main(argv=None):
     parser.add_argument(
         "--exec", "-c", nargs=argparse.REMAINDER, help="Instead of parsing an AsciiCast v2 file, run the command "
                                                        "immediately after `--exec` and use its output"
+    )
+    parser.add_argument(
+        "--hide-prompt", action="store_true", help="By default, when using the `--exec` argument to run a command, "
+                                                   "the command prompt is included before the command output; this "
+                                                   "argument hides the prompt and only includes the output"
+    )
+    parser.add_argument(
+        "--ps1", type=str, default=None,
+        help="The PS1 command prompt to use in conjuction with the `--exec` output (default=\"${PS1}\", if it is set, "
+             "otherwise \"$ \" in green)"
     )
     parser.add_argument(
         "-o",
@@ -150,7 +161,13 @@ def main(argv=None):
         sys.exit(1)
     elif args.exec:
         input_isatty = False
-        recording: TerminalRecording = TerminalRecording.record(args.exec)
+        if args.hide_prompt:
+            ps1: Optional[str] = None
+        elif args.ps1 is not None:
+            ps1 = args.ps1
+        else:
+            ps1 = os.getenv("PS1", "\u001b[32m$\u001b[0m ")
+        recording: TerminalRecording = TerminalRecording.record(args.exec, ps1=ps1)
         if recording.return_value != 0 and sys.stderr.isatty() and not args.quiet:
             sys.stderr.write(f"\n\nWarning: `{' '.join(args.exec)}` exited with code {recording.return_value}\n\n")
     else:

@@ -48,8 +48,15 @@ class TerminalRecording:
         self.events: List[TerminalEvent] = []
 
     @classmethod
-    def record(cls: Type[C], argv: Iterable[str], encoding: str = "utf-8") -> C:
-        return TerminalRecorder(recording_type=cls, encoding=encoding).record(argv)
+    def record(cls: Type[C], argv: Iterable[str], encoding: str = "utf-8", ps1: Optional[str] = None) -> C:
+        recorder = TerminalRecorder(recording_type=cls, encoding=encoding)
+        recording = recorder.record(argv)
+        if ps1 is not None:
+            new_events: List[TerminalEvent] = [
+                TerminalOutput(f"{ps1}{' '.join(argv)}\n", 0.0)
+            ]
+            recording.events = new_events + recording.events
+        return recording
 
     def calculate_optimal_fps(self, idle_time_limit: Optional[float] = None) -> float:
         min_delta: Optional[float] = None
