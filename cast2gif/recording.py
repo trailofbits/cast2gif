@@ -62,6 +62,8 @@ class FixedTerminalSize(ConstantTerminalSize):
 
 class InheritedTerminalSize(FixedTerminalSize):
     def __init__(self, width: Optional[int] = None, height: Optional[int] = None):
+        self.width_was_inherited: bool = width is None
+        self.height_was_inherited: bool = height is None
         if width is None or height is None:
             try:
                 term_size = os.get_terminal_size()

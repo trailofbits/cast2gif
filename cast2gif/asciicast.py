@@ -1,7 +1,7 @@
 import json
-from typing import Any, Dict, Iterable, Optional, Type, Union
+from typing import Any, Dict, Iterable, Type, Union
 
-from .recording import AutoTerminalSize, C, TerminalOutput, TerminalRecording, TerminalSize
+from .recording import AutoTerminalSize, C, InheritedTerminalSize, TerminalOutput, TerminalRecording, TerminalSize
 
 
 class AsciiCast(TerminalRecording):
@@ -16,29 +16,26 @@ class AsciiCast(TerminalRecording):
 
     @metadata.setter
     def metadata(self, new_metadata: Dict[str, Any]):
-        if "width" in new_metadata:
-            self.width = new_metadata["width"]
-        if "height" in new_metadata:
-            self.height = new_metadata["height"]
+        if "width" in new_metadata and isinstance(self._size, InheritedTerminalSize) and self._size.width_was_inherited:
+            self._size.width = new_metadata["width"]
+            self._size.width_was_inherited = False
+        if "height" in new_metadata and isinstance(self._size, InheritedTerminalSize) \
+                and self._size.height_was_inherited:
+            self._size.height = new_metadata["height"]
+            self._size.height_was_inherited = False
         self._metadata = new_metadata
 
     @classmethod
     def load(cls: Type[C], cast: Union[bytes, str, Iterable[str]],
-             width: Optional[int] = None, height: Optional[int] = None) -> C:
+             terminal_size: TerminalSize = InheritedTerminalSize()) -> C:
         if isinstance(cast, str) or isinstance(cast, bytes):
             cast = cast.splitlines()
 
-        ascii_cast = cls(width=width, height=height)
+        ascii_cast = cls(terminal_size=terminal_size)
 
         for i, line in enumerate(cast):
             if i == 0:
                 ascii_cast.metadata = json.loads(line)
-                if width is not None:
-                    # override the original metadata
-                    ascii_cast.width = width
-                if height is not None:
-                    # override the original metadata
-                    ascii_cast.height = height
             else:
                 event_time, event_type, data = json.loads(line)
                 if event_type == "o":

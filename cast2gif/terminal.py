@@ -109,13 +109,13 @@ class ANSITerminal(Screen):
                 # we don't need to handle bracketed paste mode
                 pass
             else:
-                raise Exception("ESC[%sh escape is currently unsupported!" % self._esc)
+                raise NotImplementedError("ESC[%sh escape is currently unsupported!" % self._esc)
         elif char == 'l':
             if self._esc == '?2004':
                 # we don't need to handle bracketed paste mode
                 pass
             else:
-                raise Exception("ESC[%sl escape is currently unsupported!" % self._esc)
+                raise NotImplementedError("ESC[%sl escape is currently unsupported!" % self._esc)
         elif char == 'm':
             self._write_esc_m()
         elif char == 's':
@@ -124,7 +124,7 @@ class ANSITerminal(Screen):
             if self._stored_pos is not None:
                 self.move_to(*self._stored_pos)
         elif char in 'STfinhl':
-            raise Exception(f"ESC[{self._esc}{char} escape is currently unsupported!")
+            raise NotImplementedError(f"ESC[{self._esc}{char} escape is currently unsupported!")
         else:
             matched = False
         if matched:

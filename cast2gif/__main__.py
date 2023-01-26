@@ -157,6 +157,17 @@ def main(argv=None):
         print(__version_name__)
         sys.exit(0)
 
+    if args.auto_size:
+        term_size = AutoTerminalSize()
+    elif args.width is not None and args.height is not None:
+        term_size = FixedTerminalSize(width=args.width, height=args.height)
+    else:
+        term_size = InheritedTerminalSize()
+        if args.width is not None:
+            term_size.width = args.width
+        elif args.height is not None:
+            term_size.height = args.height
+
     if args.ASCIICAST is None and not args.exec:
         parser.print_usage(sys.stderr)
         sys.stderr.write("\nerror: you must provide either an AsciiCast v2 input file or use the `--exec` argument\n")
@@ -174,16 +185,6 @@ def main(argv=None):
             ps1 = args.ps1
         else:
             ps1 = os.getenv("PS1", "\u001b[32m$\u001b[0m ")
-        if args.auto_size:
-            term_size = AutoTerminalSize()
-        elif args.width is not None and args.height is not None:
-            term_size = FixedTerminalSize(width=args.width, height=args.height)
-        else:
-            term_size = InheritedTerminalSize()
-            if args.width is not None:
-                term_size.width = args.width
-            elif args.height is not None:
-                term_size.height = args.height
         recording: TerminalRecording = TerminalRecording.record(args.exec, ps1=ps1, terminal_size=term_size)
         if recording.return_value != 0 and sys.stderr.isatty() and not args.quiet:
             sys.stderr.write(f"\n\nWarning: `{' '.join(args.exec)}` exited with code {recording.return_value}\n\n")
@@ -194,7 +195,7 @@ def main(argv=None):
             input_stream = open(args.ASCIICAST, "rb")
         try:
             input_isatty = input_stream.isatty()
-            recording = AsciiCast.load(input_stream.read(), width=args.width, height=args.height)
+            recording = AsciiCast.load(input_stream.read(), terminal_size=term_size)
         finally:
             if input_stream != sys.stdin:
                 input_stream.close()
